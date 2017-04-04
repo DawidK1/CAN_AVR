@@ -102,11 +102,8 @@ void CAN_Send_simple_data(uint8_t mob_number, uint8_t dlc , uint16_t ID, uint8_t
 
 	for(i = 0 ; i < dlc ; i++){
 		CANMSG = *(data + i);
-		CANPAGE++;
-
 
 	}
-	//CANPAGE &= 0xF8;// clear indx
 
 	CANCDMOB |= (1 << CONMOB0);
 	CANCDMOB &=~ ((1 << CONMOB1) | (1 << IDE));// enable trnasmit, 2.0A ver
@@ -122,7 +119,7 @@ void CAN_send_A(uint8_t mob_number, uint8_t dlc , uint16_t ID, uint8_t* data){
 	CANPAGE |= (mob_number << MOBNB0);
 
 	// set DLC number
-	CANCDMOB &= 0x11110000; // clear dlc number
+	CANCDMOB &= 0x11110000; // clear previous number
 	CANCDMOB |= dlc;
 
 	CANPAGE &= 0b11111000;// clear indx
@@ -131,20 +128,25 @@ void CAN_send_A(uint8_t mob_number, uint8_t dlc , uint16_t ID, uint8_t* data){
 	CANIDT1 = (uint8_t)(ID>>3);
 	CANIDT2 = (uint8_t)(ID<<5);
 
-	CANIDT4 &=~ (1 << RTRTAG);
+	CANIDT4 &=~ (1 << RTRTAG);//set as non-request frame
 
+	//load data
 	for(i = 0 ; i < dlc ; i++){
 		CANMSG = data[i];
 
 	}
 	CANPAGE &= 0b11111000;
 
+
+	// enable trnasmit, 2.0A ver
 	CANCDMOB |= (1 << CONMOB0);
-	CANCDMOB &=~ ((1 << CONMOB1) | (1 << IDE));// enable trnasmit, 2.0A ver
+	CANCDMOB &=~ ((1 << CONMOB1) | (1 << IDE));
 
 
 
 }
+///////////////////////////////////////////////
+
 
 void CAN_send_B(uint8_t mob_number, uint8_t dlc , uint32_t ID, uint8_t* data){
 
