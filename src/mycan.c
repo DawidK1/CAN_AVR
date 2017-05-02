@@ -23,8 +23,8 @@ void CAN_Init(void){
 			| (0 <<ENERG) // En Genereal Errors Interrupt
 			| (0 << ENOVRT); // En CAN timer overrun interrupt
 
-	CANIE1 |= (1 << IEMOB14);// Used to enable MOb interrupts 14:8
-	CANIE2 |= (1 << IEMOB0);// MOb interrupts for 7:0
+	//CANIE1 |= (1 << IEMOB14);// Used to enable MOb interrupts 14:8
+	//CANIE2 |= (1 << IEMOB0);// MOb interrupts for 7:0
 
 
 //	CANBT1 |= (1 << BRP0) //CAN Baud rate prescaller
@@ -52,8 +52,10 @@ void CAN_Init(void){
 //			| (0 << SMP); // sample points per bit
 
 
+
+	CANBT1 = 0x06 ; CANBT2 = 0x04; CANBT3 = 0x13; //500 Kbps v2
 	//CANBT1 = 0x02 ; CANBT2 = 0x0C ; CANBT3 = 0X37;// 500 Kbps
-	CANBT1 = 0x12 ; CANBT2 = 0x0C ; CANBT3 = 0X37;// 100 Kbps
+	//CANBT1 = 0x12 ; CANBT2 = 0x0C ; CANBT3 = 0X37;// 100 Kbps
 
 	CANTCON = 0; //Can timer prescaller 0-255
 
@@ -73,9 +75,22 @@ void CAN_Init(void){
 
 	CANIDM4 &=~  (1 << IDEMSK);// disable mask, accept all messages
 
-	CANCDMOB|= (1 << CONMOB1);//enable receive
-	CANCDMOB &=~ (1 << CONMOB0);
+	CANCDMOB |= (1 << CONMOB1);//enable receive
+	CANCDMOB &=~(1 << CONMOB0);
 
+	//copied
+
+	CANIDM1 = 0x00;   	// Clear Mask, let all IDs pass
+
+	CANIDM2 = 0x00; 	// ""
+
+	CANIDM3 = 0x00; 	// ""
+
+	CANIDM4 = 0x00; 	// ""
+
+	CANCDMOB = ( 1 << CONMOB1) | ( 1 << IDE ) | ( 8 << DLC0);  // Enable Reception 29 bit IDE DLC8
+
+	CANGCON |= ( 1 << ENASTB );			// Enable mode. CAN channel enters in enable mode once 11 recessive bits have been read
 }
 //////////////////////////////////////////////////////////
 
@@ -176,11 +191,14 @@ void CAN_send_B(uint8_t mob_number, uint8_t dlc , uint32_t ID, uint8_t* data){
 		CANMSG = data[i];
 
 	}
+
 	CANPAGE &= 0b11111000;
 
 	CANCDMOB |= (1 << CONMOB0)	| (1 << IDE);
 
-	CANCDMOB &=~ ((1 << CONMOB1) | (0 << IDE));// enable trnasmit, 2.0B ver
+	CANCDMOB &=~ ((1 << CONMOB1));// enable trnasmit, 2.0B ver
 
 
 }
+
+

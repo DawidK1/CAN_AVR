@@ -1,5 +1,5 @@
 /*
- * main.c
+  * main.c
  *
  *  Created on: 29.03.2017
  *      Author: dawid
@@ -13,6 +13,8 @@
 #include "mycan.h"
 
 #define TOOGLE_DIODE PORTE^=(1<<PE4)
+#define DIODE_ON PORTE &=~ (1<<PE4)
+#define DIODE_OFF PORTE |= (1<<PE4)
 
 uint8_t uart_buf[20];
 uint8_t uart_tx_buf[20];
@@ -26,9 +28,9 @@ volatile uint8_t counter =0;
 volatile uint8_t ready_to_send_to_CAN=0;
 
 void USART1_Init (void);
-void USART1_Transmit (unsigned char data); 	//Uart pulling transmit
+void USART1_Transmit (unsigned char data); 	//Uart polling transmit
 											//for test uses only
-void USART1_NB_transmit(uint8_t *data, uint8_t size);//Uart non-blocking transmit
+void USART1_NB_transmit(uint8_t size);//Uart non-blocking transmit
 
 void uart_to_can(); //send via CAN from uart buffer
 void check_CAN(); //checking CAN buffers and send via UART if receive something
@@ -37,19 +39,23 @@ void check_CAN(); //checking CAN buffers and send via UART if receive something
 int main(){
 
 	sei();
+	DDRE |= (1<<PE4); //enable blinking diode on board
+
+	DIODE_OFF;
 	USART1_Init();
 	CAN_Init();
 
-	DDRE |= (1<<PE4); //enable blinking diode on board
+
 
 		while(1){
+			check_CAN();
 
 			if(ready_to_send_to_CAN){
-				TOOGLE_DIODE;
+
 				uart_to_can();
 				}
 
-			check_CAN();
+
 			}
 
 		return 0;
@@ -94,9 +100,10 @@ void uart_to_can() {
 	case TX_B:
 		id = uart_buf[4] + (uint32_t) (uart_buf[3] << 8)
 				+ ((uint32_t) uart_buf[2] << 16)
-				+ ((uint32_t) uart_buf[2] << 24);
+				+ ((uint32_t) uart_buf[1] << 24);
 
-		CAN_send_B(1, uart_buf[5], id, uart_buf + 6);
+		CAN_send_B(0, uart_buf[5], id, uart_buf + 6);
+
 		ready_to_send_to_CAN = 0;
 		break;
 
@@ -106,14 +113,17 @@ void uart_to_can() {
 }
 /********************************************************/
 void check_CAN() {
-	UCSR1B &= ~(1 << RXCIE1); // disable uart interrupt
+
+
 	uint8_t i = 0;
 
 	CANPAGE &= 0x8;
 	CANPAGE |= (14 << MOBNB0);
 
+
 	if ( CANSTMOB & (1 << RXOK)) {
-		if (CANSTMOB & (1 << IDE)) {			// 1 = 2.0B
+		if (CANCDMOB & (1 << IDE)) {			// 1 = 2.0B
+			TOOGLE_DIODE;
 			uart_tx_buf[0] = RX_B;
 
 			uart_tx_buf[1] = CANIDT4 >> 3;			// id tag
@@ -128,8 +138,13 @@ void check_CAN() {
 			for (i = 0; i < uart_tx_buf[5]; i++) //copy data to buff
 				uart_tx_buf[6 + i] = CANMSG;
 
-			USART1_NB_transmit( 6 + uart_tx_buf[5])//send data via uart
+			uart_tx_buf[6 + uart_tx_buf[5]]= 170; //end of line
+
+			USART1_NB_transmit( 6 + uart_tx_buf[5]  + 1);//send data via uart
+
+
 		} else { // 2.0A
+
 			uart_tx_buf[0] = RX_A;
 			uart_tx_buf[1] = CANIDT2 >> 5; // id tag
 			uart_tx_buf[2] = CANIDT1;
@@ -141,11 +156,21 @@ void check_CAN() {
 			for (i = 0; i < uart_tx_buf[3]; i++) //copy data to buff
 				uart_tx_buf[4 + i] = CANMSG;
 
-			USART1_NB_transmit( 4 + uart_tx_buf[3])//send data via uart
+			USART1_NB_transmit( 4 + uart_tx_buf[3]);//send data via uart
+
 		}
 	}
+		CANIDM1 = 0x00;   	// Clear Mask, let all IDs pass
+		CANIDM2 = 0x00;
+		CANIDM3 = 0x00;
+		CANIDM4 = 0x00;
 
-	UCSR1B |= (1 << RXCIE1); // enable uart interrupt
+		CANCDMOB = ( 1 << CONMOB1) | ( 1 << IDE ) | ( 8 << DLC0);  // Enable Reception 29 bit IDE DLC8
+		CANGCON |= ( 1 << ENASTB );			// Enable mode. CAN channel enters in enable mode once 11 recessive bits have been read
+
+		CANSTMOB &=~ ( 1 << RXOK);
+
+	sei();
 }
 /********************************************************/
 void Uart_send_data(uint8_t size){
@@ -162,18 +187,7 @@ void USART1_NB_transmit( uint8_t size){
 	UDR1 = uart_tx_buf[0];
 
 }
-/********************************************************/
-ISR(USART1_TX_vect){
 
-	if(uart_tx_counter){
-		if(uart_tx_counter < uart_tx_data_size)
-			UDR1 = uart_tx_buf[uart_tx_counter++];
-		else
-			uart_tx_counter=0;
-	}
-}
-
-/********************************************************/
 
 ISR(USART1_RX_vect) {
 
@@ -245,9 +259,6 @@ ISR(USART1_TX_vect){
 	if(uart_tx_counter < uart_tx_data_size)
 		UDR1 = uart_tx_buf[uart_tx_counter++];
 }
-
-
-
 
 
 
