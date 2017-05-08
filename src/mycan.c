@@ -9,6 +9,8 @@
 ////////////////////////////////////////////////////////
 void CAN_Init(void){
 
+	uint8_t mob_number;
+
 
 	CANGCON |= (1<< ENASTB ) // Set CAN enable
 			| (1<< TTC) //TTC mode en
@@ -68,29 +70,28 @@ void CAN_Init(void){
 
 
 	//RECEIVE CONFIG
-	CANPAGE &=0x08;// clear CANPAGE
 
+	for (mob_number = 8; mob_number < 15; mob_number++) {// SET MObs 8-14 as receivers
 
-	CANPAGE |= (14 << MOBNB0);//choose mob to receive
+		CANPAGE &= 0x08;	// clear CANPAGE
 
-	CANIDM4 &=~  (1 << IDEMSK);// disable mask, accept all messages
+		CANPAGE |= (mob_number << MOBNB0);	//choose mob to receive
 
-	CANCDMOB |= (1 << CONMOB1);//enable receive
-	CANCDMOB &=~(1 << CONMOB0);
+		CANIDM4 &= ~(1 << IDEMSK);	// disable mask, accept all messages
 
-	//copied
+		CANCDMOB |= (1 << CONMOB1);	//enable receive
+		CANCDMOB &= ~(1 << CONMOB0);
 
-	CANIDM1 = 0x00;   	// Clear Mask, let all IDs pass
+		CANIDM1 = 0x00;
+		CANIDM2 = 0x00;
+		CANIDM3 = 0x00;
+		CANIDM4 = 0x00;
 
-	CANIDM2 = 0x00; 	// ""
+		CANCDMOB = (1 << CONMOB1) | (1 << IDE) | (8 << DLC0); // Enable Reception 29 bit IDE, DLC8
 
-	CANIDM3 = 0x00; 	// ""
+		CANGCON |= (1 << ENASTB);// Enable mode. CAN channel enters in enable mode once 11 recessive bits have been read
+	}
 
-	CANIDM4 = 0x00; 	// ""
-
-	CANCDMOB = ( 1 << CONMOB1) | ( 1 << IDE ) | ( 8 << DLC0);  // Enable Reception 29 bit IDE DLC8
-
-	CANGCON |= ( 1 << ENASTB );			// Enable mode. CAN channel enters in enable mode once 11 recessive bits have been read
 }
 //////////////////////////////////////////////////////////
 
@@ -125,79 +126,86 @@ void CAN_Send_simple_data(uint8_t mob_number, uint8_t dlc , uint16_t ID, uint8_t
 
 }
 ////////////////////////////////////////////////
-void CAN_send_A(uint8_t mob_number, uint8_t dlc , uint16_t ID, uint8_t* data){
+void CAN_send_A(uint8_t dlc, uint16_t ID, uint8_t* data) {
 
-	uint8_t i=0;
+	uint8_t i = 0;
+	uint8_t mob_number = 0;
 	// Choose MOb
+	for (; mob_number < 8; mob_number++) {
+		if (!(CANEN1 & (1 << mob_number))) { //Find availible MOb
 
-	CANPAGE &= 0x0F;//clear MOb number
-	CANPAGE |= (mob_number << MOBNB0);
+			CANPAGE &= 0x0F; //clear MOb number
+			CANPAGE |= (mob_number << MOBNB0);
 
-	// set DLC number
-	CANCDMOB &= 0x11110000; // clear previous number
-	CANCDMOB |= dlc;
+			// set DLC number
+			CANCDMOB &= 0x11110000; // clear previous number
+			CANCDMOB |= dlc;
 
-	CANPAGE &= 0b11111000;// clear indx
+			CANPAGE &= 0b11111000; // clear indx
 
-	//set ID tag
-	CANIDT1 = (uint8_t)(ID>>3);
-	CANIDT2 = (uint8_t)(ID<<5);
+			//set ID tag
+			CANIDT1 = (uint8_t) (ID >> 3);
+			CANIDT2 = (uint8_t) (ID << 5);
 
-	CANIDT4 &=~ (1 << RTRTAG);//set as non-request frame
+			CANIDT4 &= ~(1 << RTRTAG); //set as non-request frame
 
-	//load data
-	for(i = 0 ; i < dlc ; i++){
-		CANMSG = data[i];
+			//load data
+			for (i = 0; i < dlc; i++) {
+				CANMSG = data[i];
 
+			}
+			CANPAGE &= 0b11111000;
+
+			// enable trnasmit, 2.0A ver
+			CANCDMOB |= (1 << CONMOB0);
+			CANCDMOB &= ~((1 << CONMOB1) | (1 << IDE));
+
+			break;
+		}
 	}
-	CANPAGE &= 0b11111000;
-
-
-	// enable trnasmit, 2.0A ver
-	CANCDMOB |= (1 << CONMOB0);
-	CANCDMOB &=~ ((1 << CONMOB1) | (1 << IDE));
-
-
 
 }
 ///////////////////////////////////////////////
 
+void CAN_send_B(uint8_t dlc, uint32_t ID, uint8_t* data) {
 
-void CAN_send_B(uint8_t mob_number, uint8_t dlc , uint32_t ID, uint8_t* data){
+	uint8_t i = 0;
+	uint8_t mob_number = 0;
 
-	uint8_t i=0;
-	// Choose MOb
+	for (; mob_number < 8; mob_number++) {
+		if (!(CANEN1 & (1 << mob_number))) { //Find availible MOb
+			CANPAGE &= 0x0F; //clear MOb number
+			CANPAGE |= (mob_number << MOBNB0);
 
-	CANPAGE &= 0x0F;//clear MOb number
-	CANPAGE |= (mob_number << MOBNB0);
+			// set DLC number
+			CANCDMOB &= 0x11110000; // clear dlc number
+			CANCDMOB |= dlc;
 
-	// set DLC number
-	CANCDMOB &= 0x11110000; // clear dlc number
-	CANCDMOB |= dlc;
+			CANPAGE &= 0b11111000; // clear indx
 
-	CANPAGE &= 0b11111000;// clear indx
+			//set ID tag
+			CANIDT1 = (uint8_t) (ID >> 21);
+			CANIDT2 = (uint8_t) (ID >> 13);
+			CANIDT3 = (uint8_t) (ID >> 5);
+			CANIDT4 = (uint8_t) (ID << 3);
 
-	//set ID tag
-	CANIDT1 = (uint8_t)(ID >> 21);
-	CANIDT2 = (uint8_t)(ID >> 13);
-	CANIDT3 = (uint8_t)(ID >> 5);
-	CANIDT4 = (uint8_t)(ID << 3);
+			CANIDT4 &= 0xF8;
 
-	CANIDT4 &= 0xF8;
+			CANIDT4 &= ~(1 << RTRTAG);
 
-	CANIDT4 &=~ (1 << RTRTAG);
+			for (i = 0; i < dlc; i++) {
+				CANMSG = data[i];
 
-	for(i = 0 ; i < dlc ; i++){
-		CANMSG = data[i];
+			}
 
+			CANPAGE &= 0b11111000;
+
+			CANCDMOB |= (1 << CONMOB0) | (1 << IDE);
+
+			CANCDMOB &= ~((1 << CONMOB1)); // enable trnasmit, 2.0B ver
+			break;
+		}
 	}
-
-	CANPAGE &= 0b11111000;
-
-	CANCDMOB |= (1 << CONMOB0)	| (1 << IDE);
-
-	CANCDMOB &=~ ((1 << CONMOB1));// enable trnasmit, 2.0B ver
-
 
 }
 
