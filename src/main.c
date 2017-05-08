@@ -149,7 +149,7 @@ void check_CAN() {
 	uint8_t j = 0;
 
 	for( ; j < 7; j++){
-	if (!(CANEN1 & (1 << j))) {//check all MO blocks for message reception
+	if (!(CANEN1 & (1 << j))) {//check all MO blocks for message reception hit
 
 			CANPAGE &= 0x8;
 			CANPAGE |= ((8 + j) << MOBNB0);
