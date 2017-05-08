@@ -170,7 +170,7 @@ void check_CAN() {
 			for (i = 0; i < tx_frame_holder[5]; i++) //copy data to buff
 				tx_frame_holder[6 + i] = CANMSG;
 
-			tx_frame_holder[6 + tx_frame_holder[5]]= 170; //end of line
+			tx_frame_holder[6 + tx_frame_holder[5]]= 170; //EOF
 
 			//USART1_NB_transmit( 6 + tx_frame_holder[5]  + 1);//send data via uart
 			add_to_tx_queue(tx_frame_holder,7 + tx_frame_holder[5] );//add to UART sending buff
@@ -190,7 +190,9 @@ void check_CAN() {
 				tx_frame_holder[4 + i] = CANMSG;
 
 			//USART1_NB_transmit( 4 + tx_frame_holder[3]);//send data via uart
-			add_to_tx_queue(tx_frame_holder,4 + tx_frame_holder[3]);
+
+			tx_frame_holder[4+ tx_frame_holder[3] ] = 173;//EOF
+			add_to_tx_queue(tx_frame_holder,5 + tx_frame_holder[3]);
 		}
 		CANIDM1 = 0x00;   	// Clear Mask, let all IDs pass
 		CANIDM2 = 0x00;
