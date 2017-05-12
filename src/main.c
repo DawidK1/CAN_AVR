@@ -10,7 +10,7 @@
 #include "mycan.h"
 
 
-#define UART_BAUD 115200
+#define UART_BAUD 500000
 #define __UBRR ((F_CPU+UART_BAUD*8UL) / (16UL*UART_BAUD)-1)
 
 #define TX_BUFFER_SIZE 120
@@ -60,8 +60,9 @@ void check_CAN(); //checking CAN buffers and send via UART if receive something
 inline void get_from_RX_queue(uint8_t* address){// take data from RX buffer
 	*address = *rx_begin_ptr;
 	++rx_begin_ptr;
-	rx_queue_size--;
-	if (rx_begin_ptr > rx_buffer + RX_BUFFER_SIZE - 1) rx_begin_ptr = rx_buffer;
+	--rx_queue_size;
+	if (rx_begin_ptr > rx_buffer + RX_BUFFER_SIZE - 1)
+		rx_begin_ptr = rx_buffer;
 
 }
 
@@ -240,10 +241,11 @@ void add_to_tx_queue(uint8_t *data, uint8_t size){
 void read_rx_buffer() {
 
 	read_cycles = MAX_READS_FROM_RX;
+
 	while (rx_queue_size && read_cycles ) {
 
 		if (!counter) {
-			get_from_RX_queue(&frame_holder[0]);
+			get_from_RX_queue(frame_holder);
 			counter++;
 		} else {
 
@@ -255,43 +257,57 @@ void read_rx_buffer() {
 						counter = 0;
 
 					if (counter > (frame_holder[3] + 2)) {
-						get_from_RX_queue(&frame_holder[counter]);	//read last data
+						get_from_RX_queue(frame_holder + counter);	//read last data
 
 						counter = 0;
 						uart_to_can();			// send to can
 
 					} else {
-						get_from_RX_queue(&frame_holder[counter]);
+						get_from_RX_queue(frame_holder + counter);
+						counter++;
+
 					}
 
 				} else {
 
-					get_from_RX_queue(&frame_holder[counter]);
+					get_from_RX_queue(frame_holder + counter);
+					counter++;
+
 				}
 
 				break;
 
 			case TX_B:
 
+
+
+
 				if ((counter > 5)) {
+
+
 
 					if (frame_holder[5] > 8)			//error detected, abort
 						counter = 0;
 
 					if (counter > (frame_holder[5] + 4)) {	//is this last data?
-						get_from_RX_queue(&frame_holder[counter]);
-						;
+						get_from_RX_queue(frame_holder + counter);
+
 
 						counter = 0;
+
 						uart_to_can();	//send to can
 
+
 					} else {
-						get_from_RX_queue(&frame_holder[counter]);
+						get_from_RX_queue(frame_holder + counter);
+						counter++;
+
 					}
 
 				} else {
 
-					get_from_RX_queue(&frame_holder[counter]);
+					get_from_RX_queue(frame_holder + counter);
+					counter++;
 
 				}
 				break;
@@ -303,6 +319,7 @@ void read_rx_buffer() {
 		}
 	--read_cycles;
 	}
+
 }
 
 
