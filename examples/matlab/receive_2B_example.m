@@ -1,10 +1,4 @@
-%open com port, speed 115200, one stop bit, no parity bits
-s = serial('COM11');
-set(s,'BaudRate',115200);
-s.StopBits=1;
-s.Parity='none';
-  fopen(s);
-s
+
 
 while 1
     msg= fread(s);
