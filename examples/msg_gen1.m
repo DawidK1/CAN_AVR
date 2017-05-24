@@ -1,4 +1,5 @@
-function msg = msg_gen()
+function msg = msg_gen1()
+%generate HMIIOM_Displ_01P
             field1	 = 'LiftAxle2Alert_cmd' ;	value1	 = 0 ;
             field2	 = 'AdBlueLevelLowAlert_cmd' ;	value2	 = 0 ;
             field3	 = 'LiftAxle1Alert_cmd' ;	value3	 = 0 ;
