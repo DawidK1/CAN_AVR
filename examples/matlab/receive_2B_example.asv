@@ -1,15 +1,8 @@
 
 
-%in this example bytes from UART are parsed into CAN frames and displayed
-%in command windows. In specific application you should use ID and data and
-%react according to received messages.
-
-
-%if you dont have variable s initialized config your com port, using config_com.m
-
+%first config your com port, using config_com.m
 
 while 1
-
     msg= fread(s); %read data from stream
     first_list=find(msg == 4);% find all possible frame begins 
 
@@ -31,7 +24,7 @@ while 1
             
             DLC = parse(6);
             output = dec2hex(ID);
-            %data bytes is stored in  7 ... 6+DLC
+            %data bytes is stored in 
                 output = strcat('ID=',output, ' DLC = ', num2str(DLC), ' DATA = ');
                 for i =1:DLC
                      output = strcat(output, num2str(parse(6 +i)), '. '); % glue together frame

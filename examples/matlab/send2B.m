@@ -1,4 +1,5 @@
-function send2B(s,ID,DLC,DATA)%this function is used to send 2.0B extended CAN frame to CAN-AVR
+%this function is used to send 2.0B extended CAN frame to CAN-AVR
+function send2B(s,ID,DLC,DATA)
 
 
     CMD = 2;
